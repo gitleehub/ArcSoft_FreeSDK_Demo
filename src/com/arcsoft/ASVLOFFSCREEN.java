@@ -17,8 +17,8 @@ public class ASVLOFFSCREEN extends Structure {
     
     }
 
-    @Override
-    protected List getFieldOrder() { 
+	@Override
+    protected List<String> getFieldOrder() { 
         return Arrays.asList(new String[] { 
             "u32PixelArrayFormat", "i32Width", "i32Height", "ppu8Plane","pi32Pitch"
         });

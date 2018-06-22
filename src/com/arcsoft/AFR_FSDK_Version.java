@@ -16,7 +16,7 @@ public class AFR_FSDK_Version extends Structure {
     public String CopyRight;
     
     @Override
-    protected List getFieldOrder() { 
+    protected List<String> getFieldOrder() { 
         return Arrays.asList(new String[] { 
             "lCodebase", "lMajor", "lMinor", "lBuild","lFeatureLevel","Version", "BuildDate", "CopyRight"
         });

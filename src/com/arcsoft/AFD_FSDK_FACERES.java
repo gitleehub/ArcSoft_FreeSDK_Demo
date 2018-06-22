@@ -32,7 +32,7 @@ public class AFD_FSDK_FACERES extends Structure {
     }
 
     @Override
-    protected List getFieldOrder() {
+    protected List<String> getFieldOrder() {
         return Arrays.asList(new String[] { "nFace", "rcFace", "lfaceOrient" });
     }
 }

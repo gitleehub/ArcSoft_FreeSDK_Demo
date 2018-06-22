@@ -2,9 +2,12 @@ package com.arcsoft.utils;
 
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
-import javax.imageio.ImageIO;
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+
+import javax.imageio.ImageIO;
 
 public class ImageLoader {
     public static final boolean USING_FLOAT = false;
@@ -33,6 +36,40 @@ public class ImageLoader {
         return new BufferInfo(w, h, yuv);
     }
     
+ // 增加图片字节数组方式
+ 	public static BufferInfo getI420FromByteArray(byte[] image) {
+
+ 		InputStream imageInput = new ByteArrayInputStream(image);
+ 		BufferedImage img = null;
+ 		byte[] yuv = null;
+ 		int w = 0;
+ 		int h = 0;
+ 		try {
+ 			// imageInput.read(image);
+ 			img = ImageIO.read(imageInput);
+ 			if (((img.getWidth() & 0x1) != 0) || ((img.getHeight() & 0x1) != 0)) {
+ 				img = img.getSubimage(0, 0, img.getWidth() & 0xFFFFFFFE, img.getHeight() & 0xFFFFFFFE);
+ 			}
+ 			w = img.getWidth();
+ 			h = img.getHeight();
+ 			int[] bgra = img.getRGB(0, 0, w, h, null, 0, w);
+ 			if (USING_FLOAT) {
+ 				yuv = BGRA2I420_float(bgra, w, h);
+ 			} else {
+ 				yuv = BGRA2I420(bgra, w, h);
+ 			}
+ 		} catch (Exception e) {
+ 			throw new RuntimeException(e);
+ 		} finally {
+ 			try {
+ 				imageInput.close();
+ 			} catch (IOException e) {
+ 				e.printStackTrace();
+ 			}
+ 		}
+
+ 		return new BufferInfo(w, h, yuv);
+ 	}
     public static BufferInfo getBGRFromFile(String filePath) {
         byte[] bgr = null;
         int width = 0;
@@ -52,6 +89,35 @@ public class ImageLoader {
         return new BufferInfo(width, height, bgr);
     }
     
+ // 增加图片字节数组方式创建
+ 	public static BufferInfo getBGRFromByteArray(byte[] image) {
+ 		InputStream imageInput = new ByteArrayInputStream(image);
+ 		BufferedImage img=null;
+ 		byte[] bgr = null;
+ 		int width = 0;
+ 		int height = 0;
+ 		try {
+ 			img = ImageIO.read(imageInput);
+ 			if(null==img) {
+ 				return null;
+ 			}
+ 			width = img.getWidth();
+ 			height = img.getHeight();
+ 			BufferedImage bgrimg = new BufferedImage(img.getWidth(), img.getHeight(), BufferedImage.TYPE_3BYTE_BGR);
+ 			bgrimg.setRGB(0, 0, width, height, img.getRGB(0, 0, width, height, null, 0, width), 0, width);
+ 			bgr = ((DataBufferByte) bgrimg.getRaster().getDataBuffer()).getData();
+ 		} catch (Exception e) {
+ 			throw new RuntimeException(e);
+ 		} finally {
+ 			try {
+ 				imageInput.close();
+ 			} catch (IOException e) {
+ 				// TODO Auto-generated catch block
+ 				e.printStackTrace();
+ 			}
+ 		}
+ 		return new BufferInfo(width, height, bgr);
+ 	}
     //Full swing for BT.601
     public static byte[] BGRA2I420(int[] bgra, int width, int height) {
 

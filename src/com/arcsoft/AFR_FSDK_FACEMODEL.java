@@ -14,7 +14,7 @@ public class AFR_FSDK_FACEMODEL extends Structure {
 
     protected boolean bAllocByMalloc;
     @Override
-    protected List getFieldOrder() { 
+    protected List<String> getFieldOrder() { 
         return Arrays.asList(new String[] { 
             "pbFeature", "lFeatureSize"
         });

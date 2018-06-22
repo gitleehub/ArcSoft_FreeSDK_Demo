@@ -11,7 +11,7 @@ public class AFR_FSDK_FACEINPUT extends Structure {
     public int lOrient;
     
     @Override
-    protected List getFieldOrder() { 
+    protected List<String> getFieldOrder() { 
         return Arrays.asList(new String[] { 
              "rcFace", "lOrient"
         });

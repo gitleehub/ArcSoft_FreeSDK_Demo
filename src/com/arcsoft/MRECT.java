@@ -19,7 +19,6 @@ public class MRECT extends Structure {
     
     public static class ByReference extends MRECT implements Structure.ByReference{
         public ByReference() {
-            
         }
         
         public ByReference(Pointer p) {
@@ -42,7 +41,7 @@ public class MRECT extends Structure {
     }
     
     @Override
-    protected List getFieldOrder() { 
+    protected List<String> getFieldOrder() { 
         return Arrays.asList(new String[] { 
             "left", "top", "right", "bottom"
         });

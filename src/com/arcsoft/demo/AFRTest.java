@@ -2,6 +2,7 @@ package com.arcsoft.demo;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 
@@ -18,6 +19,7 @@ import com.arcsoft.CLibrary;
 import com.arcsoft.FaceInfo;
 import com.arcsoft.MRECT;
 import com.arcsoft._AFD_FSDK_OrientPriority;
+import com.arcsoft.domain.NewFaceManager;
 import com.arcsoft.utils.BufferInfo;
 import com.arcsoft.utils.ImageLoader;
 import com.sun.jna.Memory;
@@ -27,92 +29,116 @@ import com.sun.jna.ptr.FloatByReference;
 import com.sun.jna.ptr.PointerByReference;
 
 public class AFRTest {
-	public static final String    APPID  = "XXXXXXXXXX";
-	public static final String FD_SDKKEY = "YYYYYYYYYY";
-	public static final String FR_SDKKEY = "WWWWWWWWWW";
-	
-    public static final int FD_WORKBUF_SIZE = 20 * 1024 * 1024;
-    public static final int FR_WORKBUF_SIZE = 40 * 1024 * 1024;
-    public static final int MAX_FACE_NUM = 50;
+				
+	public static final String	APPID = "CxwTcQXo1d3Cx1WMhTPirmKJ3MTAjdThVn3f4gSFNeur";
+	public static final String	FD_SDKKEY = "Hk7hSLaeYikhmqwDvn8nsH5ZZbt7EtbatV1JMsGdoKrS";
+	public static final String	FR_SDKKEY = "Hk7hSLaeYikhmqwDvn8nsH64DCvnuX8c9xNFQuaoLiHE";
+	 public static final int FD_WORKBUF_SIZE = 20 * 1024 * 1024;
+	    public static final int FR_WORKBUF_SIZE = 40 * 1024 * 1024;
+	    public static final int MAX_FACE_NUM = 50;
 
-    public static final boolean bUseRAWFile = false;
-    public static final boolean bUseBGRToEngine = true;
+	    public static final boolean bUseRAWFile = false;
+	    public static final boolean bUseBGRToEngine = true;
 
-    public static void main(String[] args) {
+	 @SuppressWarnings("resource")
+	public static void mymain(String[] args) throws FileNotFoundException, IOException {
+	        System.out.println("#####################################################");
+	        
+	        String filePathA = "G:/gitlab/ArcSoft_FreeSDK_Demo/src/com/arcsoft/demo/4.jpg";
+            String filePathB = "G:/gitlab/ArcSoft_FreeSDK_Demo/src/com/arcsoft/demo/9.jpg";
+            File file = new File(filePathA);
+            byte[] buffer = new byte[(int)file.length()];
+            new FileInputStream(file).read(buffer);
+            file=new File(filePathB);
+            byte[] buffer2 = new byte[(int)file.length()];
+            new FileInputStream(file).read(buffer2);
+	        long currentTimeMillis = System.currentTimeMillis();
+	        // init Engine
+	        Pointer pFDWorkMem = CLibrary.INSTANCE.malloc(FD_WORKBUF_SIZE);
+	        Pointer pFRWorkMem = CLibrary.INSTANCE.malloc(FR_WORKBUF_SIZE);
+
+	        PointerByReference phFDEngine = new PointerByReference();
+	        NativeLong ret = AFD_FSDKLibrary.INSTANCE.AFD_FSDK_InitialFaceEngine(APPID, FD_SDKKEY, pFDWorkMem, FD_WORKBUF_SIZE, phFDEngine, _AFD_FSDK_OrientPriority.AFD_FSDK_OPF_0_HIGHER_EXT, 32, MAX_FACE_NUM);
+	        if (ret.longValue() != 0) {
+	            CLibrary.INSTANCE.free(pFDWorkMem);
+	            CLibrary.INSTANCE.free(pFRWorkMem);
+	            System.out.println(String.format("AFD_FSDK_InitialFaceEngine ret 0x%x",ret.longValue()));
+	            System.exit(0);
+	        }
+
+	        // print FDEngine version
+	        Pointer hFDEngine = phFDEngine.getValue();
+	        AFD_FSDK_Version versionFD = AFD_FSDKLibrary.INSTANCE.AFD_FSDK_GetVersion(hFDEngine);
+	        System.out.println(String.format("%d %d %d %d", versionFD.lCodebase, versionFD.lMajor, versionFD.lMinor, versionFD.lBuild));
+	        System.out.println(versionFD.Version);
+	        System.out.println(versionFD.BuildDate);
+	        System.out.println(versionFD.CopyRight);
+
+	        PointerByReference phFREngine = new PointerByReference();
+	        ret = AFR_FSDKLibrary.INSTANCE.AFR_FSDK_InitialEngine(APPID, FR_SDKKEY, pFRWorkMem, FR_WORKBUF_SIZE, phFREngine);
+	        if (ret.longValue() != 0) {
+	            AFD_FSDKLibrary.INSTANCE.AFD_FSDK_UninitialFaceEngine(hFDEngine);
+	            CLibrary.INSTANCE.free(pFDWorkMem);
+	            CLibrary.INSTANCE.free(pFRWorkMem);
+	            System.out.println(String.format("AFR_FSDK_InitialEngine ret 0x%x" ,ret.longValue()));
+	            System.exit(0);
+	        }
+
+	        // print FREngine version
+	        Pointer hFREngine = phFREngine.getValue();
+	        AFR_FSDK_Version versionFR = AFR_FSDKLibrary.INSTANCE.AFR_FSDK_GetVersion(hFREngine);
+	        System.out.println(String.format("%d %d %d %d", versionFR.lCodebase, versionFR.lMajor, versionFR.lMinor, versionFR.lBuild));
+	        System.out.println(versionFR.Version);
+	        System.out.println(versionFR.BuildDate);
+	        System.out.println(versionFR.CopyRight);
+
+	        // load Image Data
+	        ASVLOFFSCREEN inputImgA;
+	        ASVLOFFSCREEN inputImgB;
+	        	
+
+	            inputImgA = loadImage(buffer);
+	            inputImgB = loadImage(buffer2);
+
+	        System.out.println(String.format("similarity between faceA and faceB is %f" , compareFaceSimilarity(hFDEngine, hFREngine, inputImgA, inputImgB)));
+	       long currentTimeMillis2 = System.currentTimeMillis();
+	        System.out.println(currentTimeMillis-currentTimeMillis2);
+	        // release Engine
+	        AFD_FSDKLibrary.INSTANCE.AFD_FSDK_UninitialFaceEngine(hFDEngine);
+	        AFR_FSDKLibrary.INSTANCE.AFR_FSDK_UninitialEngine(hFREngine);
+
+	        CLibrary.INSTANCE.free(pFDWorkMem);
+	        CLibrary.INSTANCE.free(pFRWorkMem);
+
+	        System.out.println("#####################################################");
+	    }
+	 
+    @SuppressWarnings("resource")
+	public static void main(String[] args) throws FileNotFoundException, IOException {
         System.out.println("#####################################################");
-
-        // init Engine
-        Pointer pFDWorkMem = CLibrary.INSTANCE.malloc(FD_WORKBUF_SIZE);
-        Pointer pFRWorkMem = CLibrary.INSTANCE.malloc(FR_WORKBUF_SIZE);
-
-        PointerByReference phFDEngine = new PointerByReference();
-        NativeLong ret = AFD_FSDKLibrary.INSTANCE.AFD_FSDK_InitialFaceEngine(APPID, FD_SDKKEY, pFDWorkMem, FD_WORKBUF_SIZE, phFDEngine, _AFD_FSDK_OrientPriority.AFD_FSDK_OPF_0_HIGHER_EXT, 32, MAX_FACE_NUM);
-        if (ret.longValue() != 0) {
-            CLibrary.INSTANCE.free(pFDWorkMem);
-            CLibrary.INSTANCE.free(pFRWorkMem);
-            System.out.println(String.format("AFD_FSDK_InitialFaceEngine ret 0x%x",ret.longValue()));
-            System.exit(0);
+        NewFaceManager faceManger = new NewFaceManager();
+        faceManger.initFDEngine();
+        faceManger.initFREngine();
+        String filePathA = "G:/gitlab/ArcSoft_FreeSDK_Demo/src/com/arcsoft/demo/4.jpg";
+        String filePathB = "G:/gitlab/ArcSoft_FreeSDK_Demo/src/com/arcsoft/demo/9.jpg";
+        File file = new File(filePathA);
+        byte[] buffer = new byte[(int)file.length()];
+        new FileInputStream(file).read(buffer);
+        file=new File(filePathB);
+        byte[] buffer2 = new byte[(int)file.length()];
+        new FileInputStream(file).read(buffer2);
+        /*  for(int i = 0;i<100;i++) {
+        	
+        	float simpleFromByteArray = faceManger.getSimpleFromByteArray(buffer,buffer2);
+        	System.out.println(simpleFromByteArray);
         }
-
-        // print FDEngine version
-        Pointer hFDEngine = phFDEngine.getValue();
-        AFD_FSDK_Version versionFD = AFD_FSDKLibrary.INSTANCE.AFD_FSDK_GetVersion(hFDEngine);
-        System.out.println(String.format("%d %d %d %d", versionFD.lCodebase, versionFD.lMajor, versionFD.lMinor, versionFD.lBuild));
-        System.out.println(versionFD.Version);
-        System.out.println(versionFD.BuildDate);
-        System.out.println(versionFD.CopyRight);
-
-        PointerByReference phFREngine = new PointerByReference();
-        ret = AFR_FSDKLibrary.INSTANCE.AFR_FSDK_InitialEngine(APPID, FR_SDKKEY, pFRWorkMem, FR_WORKBUF_SIZE, phFREngine);
-        if (ret.longValue() != 0) {
-            AFD_FSDKLibrary.INSTANCE.AFD_FSDK_UninitialFaceEngine(hFDEngine);
-            CLibrary.INSTANCE.free(pFDWorkMem);
-            CLibrary.INSTANCE.free(pFRWorkMem);
-            System.out.println(String.format("AFR_FSDK_InitialEngine ret 0x%x" ,ret.longValue()));
-            System.exit(0);
-        }
-
-        // print FREngine version
-        Pointer hFREngine = phFREngine.getValue();
-        AFR_FSDK_Version versionFR = AFR_FSDKLibrary.INSTANCE.AFR_FSDK_GetVersion(hFREngine);
-        System.out.println(String.format("%d %d %d %d", versionFR.lCodebase, versionFR.lMajor, versionFR.lMinor, versionFR.lBuild));
-        System.out.println(versionFR.Version);
-        System.out.println(versionFR.BuildDate);
-        System.out.println(versionFR.CopyRight);
-
-        // load Image Data
-        ASVLOFFSCREEN inputImgA;
-        ASVLOFFSCREEN inputImgB;
-        if (bUseRAWFile) {
-            String filePathA = "001_640x480_I420.YUV";
-            int yuv_widthA = 640;
-            int yuv_heightA = 480;
-            int yuv_formatA = ASVL_COLOR_FORMAT.ASVL_PAF_I420;
-
-            String filePathB = "003_640x480_I420.YUV";
-            int yuv_widthB = 640;
-            int yuv_heightB = 480;
-            int yuv_formatB = ASVL_COLOR_FORMAT.ASVL_PAF_I420;
-
-            inputImgA = loadRAWImage(filePathA, yuv_widthA, yuv_heightA, yuv_formatA);
-            inputImgB = loadRAWImage(filePathB, yuv_widthB, yuv_heightB, yuv_formatB);
-        } else {
-            String filePathA = "6.jpg";
-            String filePathB = "1_9.jpg";
-
-            inputImgA = loadImage(filePathA);
-            inputImgB = loadImage(filePathB);
-        }
-
-        System.out.println(String.format("similarity between faceA and faceB is %f" , compareFaceSimilarity(hFDEngine, hFREngine, inputImgA, inputImgB)));
-
         // release Engine
-        AFD_FSDKLibrary.INSTANCE.AFD_FSDK_UninitialFaceEngine(hFDEngine);
+        AFD_FSDKLibrary.INSTANCE.AFD_FSDK_UninitialFaceEngine(faceManger.);
         AFR_FSDKLibrary.INSTANCE.AFR_FSDK_UninitialEngine(hFREngine);
 
         CLibrary.INSTANCE.free(pFDWorkMem);
         CLibrary.INSTANCE.free(pFRWorkMem);
-
+*/
         System.out.println("#####################################################");
     }
 
@@ -305,36 +331,23 @@ public class AFRTest {
         return inputImg;
     }
 
-    public static ASVLOFFSCREEN loadImage(String filePath) {
+    public static ASVLOFFSCREEN loadImage(byte[] filePath) {
         ASVLOFFSCREEN inputImg = new ASVLOFFSCREEN();
-
-        if (bUseBGRToEngine) {
-            BufferInfo bufferInfo = ImageLoader.getBGRFromFile(filePath);
-            inputImg.u32PixelArrayFormat = ASVL_COLOR_FORMAT.ASVL_PAF_RGB24_B8G8R8;
-            inputImg.i32Width = bufferInfo.width;
-            inputImg.i32Height = bufferInfo.height;
-            inputImg.pi32Pitch[0] = inputImg.i32Width * 3;
-            inputImg.ppu8Plane[0] = new Memory(inputImg.pi32Pitch[0] * inputImg.i32Height);
-            inputImg.ppu8Plane[0].write(0, bufferInfo.buffer, 0, inputImg.pi32Pitch[0] * inputImg.i32Height);
-            inputImg.ppu8Plane[1] = Pointer.NULL;
-            inputImg.ppu8Plane[2] = Pointer.NULL;
-            inputImg.ppu8Plane[3] = Pointer.NULL;
-        } else {
-            BufferInfo bufferInfo = ImageLoader.getI420FromFile(filePath);
-            inputImg.u32PixelArrayFormat = ASVL_COLOR_FORMAT.ASVL_PAF_I420;
-            inputImg.i32Width = bufferInfo.width;
-            inputImg.i32Height = bufferInfo.height;
-            inputImg.pi32Pitch[0] = inputImg.i32Width;
-            inputImg.pi32Pitch[1] = inputImg.i32Width / 2;
-            inputImg.pi32Pitch[2] = inputImg.i32Width / 2;
-            inputImg.ppu8Plane[0] = new Memory(inputImg.pi32Pitch[0] * inputImg.i32Height);
-            inputImg.ppu8Plane[0].write(0, bufferInfo.buffer, 0, inputImg.pi32Pitch[0] * inputImg.i32Height);
-            inputImg.ppu8Plane[1] = new Memory(inputImg.pi32Pitch[1] * inputImg.i32Height / 2);
-            inputImg.ppu8Plane[1].write(0, bufferInfo.buffer, inputImg.pi32Pitch[0] * inputImg.i32Height, inputImg.pi32Pitch[1] * inputImg.i32Height / 2);
-            inputImg.ppu8Plane[2] = new Memory(inputImg.pi32Pitch[2] * inputImg.i32Height / 2);
-            inputImg.ppu8Plane[2].write(0, bufferInfo.buffer, inputImg.pi32Pitch[0] * inputImg.i32Height + inputImg.pi32Pitch[1] * inputImg.i32Height / 2, inputImg.pi32Pitch[2] * inputImg.i32Height / 2);
-            inputImg.ppu8Plane[3] = Pointer.NULL;
-        }
+       
+	    BufferInfo bufferInfo = ImageLoader.getI420FromByteArray(filePath);
+	    inputImg.u32PixelArrayFormat = ASVL_COLOR_FORMAT.ASVL_PAF_I420;
+	    inputImg.i32Width = bufferInfo.width;
+	    inputImg.i32Height = bufferInfo.height;
+	    inputImg.pi32Pitch[0] = inputImg.i32Width;
+	    inputImg.pi32Pitch[1] = inputImg.i32Width / 2;
+	    inputImg.pi32Pitch[2] = inputImg.i32Width / 2;
+	    inputImg.ppu8Plane[0] = new Memory(inputImg.pi32Pitch[0] * inputImg.i32Height);
+	    inputImg.ppu8Plane[0].write(0, bufferInfo.buffer, 0, inputImg.pi32Pitch[0] * inputImg.i32Height);
+	    inputImg.ppu8Plane[1] = new Memory(inputImg.pi32Pitch[1] * inputImg.i32Height / 2);
+	    inputImg.ppu8Plane[1].write(0, bufferInfo.buffer, inputImg.pi32Pitch[0] * inputImg.i32Height, inputImg.pi32Pitch[1] * inputImg.i32Height / 2);
+	    inputImg.ppu8Plane[2] = new Memory(inputImg.pi32Pitch[2] * inputImg.i32Height / 2);
+	    inputImg.ppu8Plane[2].write(0, bufferInfo.buffer, inputImg.pi32Pitch[0] * inputImg.i32Height + inputImg.pi32Pitch[1] * inputImg.i32Height / 2, inputImg.pi32Pitch[2] * inputImg.i32Height / 2);
+	    inputImg.ppu8Plane[3] = Pointer.NULL;
 
         inputImg.setAutoRead(false);
         return inputImg;
