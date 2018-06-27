@@ -127,6 +127,7 @@ public class AFRTest {
         file=new File(filePathB);
         byte[] buffer2 = new byte[(int)file.length()];
         new FileInputStream(file).read(buffer2);
+        faceManger.releaseEngines();
         /*  for(int i = 0;i<100;i++) {
         	
         	float simpleFromByteArray = faceManger.getSimpleFromByteArray(buffer,buffer2);

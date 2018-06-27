@@ -1,5 +1,8 @@
 package com.arcsoft.domain;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import com.arcsoft.AFD_FSDKLibrary;
 import com.arcsoft.AFD_FSDK_FACERES;
 import com.arcsoft.AFD_FSDK_Version;
@@ -57,6 +60,11 @@ public class NewFaceManager {
 	public boolean ifUseTracking = false;
 	public boolean bUseRAWFile = false;
 	
+	
+	/**
+	 * 初始化FD
+	 * @return
+	 */
 	 public int initFDEngine(){
 	        if(isInitFD)
 	            return 0;
@@ -123,6 +131,10 @@ public class NewFaceManager {
 		   }
 	    }
 	   
+	   /**
+	    * 释放所有引擎
+	    * @return
+	    */
 	   public int releaseEngines() {
 		   NativeLong FDret = new NativeLong(-1);
 		   NativeLong FRret = new NativeLong(-1);
@@ -134,10 +146,10 @@ public class NewFaceManager {
 		    	}
 		    }
 		    if(isInitFR) {
-		    	FRret = AFD_FSDKLibrary.INSTANCE.AFD_FSDK_UninitialFaceEngine(hFDEngine);
+		    	FRret = AFR_FSDKLibrary.INSTANCE.AFR_FSDK_UninitialEngine(hFREngine);
 		    	if(FRret.intValue()==0) {
 			    	isInitFD = false;
-				    CLibrary.INSTANCE.free(pFDWorkMem);
+				    CLibrary.INSTANCE.free(pFRWorkMem);
 		    	}
 		    }
 		    if(FDret.intValue()!=0) {
@@ -150,50 +162,50 @@ public class NewFaceManager {
 	   }
 	
 	//提取人脸特征的byte数组
-	public byte[] getFaceModelFromImage(byte[] image) {
-		ASVLOFFSCREEN loadImage = loadImage(image);
-		byte[] byteArray;
-		try {
-			//doFaceDetection可能为空
-			FaceInfo[] doFaceDetection = doFaceDetection(loadImage);
-			AFR_FSDK_FACEMODEL extractFRFeature = extractFRFeature(loadImage,doFaceDetection[0]);
-			//toByteArray抛出异常
-			byteArray = extractFRFeature.toByteArray();
-		} catch (Exception e) {
-			return null;
+	public List<byte[]> getFaceModelFromImage(byte[] image) {
+		
+		//ASVLOFFSCREEN loadImage = loadImage(image);
+		ASVLOFFSCREEN inputImg = new ASVLOFFSCREEN();
+        
+        BufferInfo bufferInfo = ImageLoader.getI420FromByteArray(image);
+        inputImg.u32PixelArrayFormat = ASVL_COLOR_FORMAT.ASVL_PAF_I420;
+        inputImg.i32Width = bufferInfo.width;
+        inputImg.i32Height = bufferInfo.height;
+        inputImg.pi32Pitch[0] = inputImg.i32Width;
+        inputImg.pi32Pitch[1] = inputImg.i32Width / 2;
+        inputImg.pi32Pitch[2] = inputImg.i32Width / 2;
+        inputImg.ppu8Plane[0] = new Memory(inputImg.pi32Pitch[0] * inputImg.i32Height);
+        inputImg.ppu8Plane[0].write(0, bufferInfo.buffer, 0, inputImg.pi32Pitch[0] * inputImg.i32Height);
+        inputImg.ppu8Plane[1] = new Memory(inputImg.pi32Pitch[1] * inputImg.i32Height / 2);
+        inputImg.ppu8Plane[1].write(0, bufferInfo.buffer, inputImg.pi32Pitch[0] * inputImg.i32Height, inputImg.pi32Pitch[1] * inputImg.i32Height / 2);
+        inputImg.ppu8Plane[2] = new Memory(inputImg.pi32Pitch[2] * inputImg.i32Height / 2);
+        inputImg.ppu8Plane[2].write(0, bufferInfo.buffer, inputImg.pi32Pitch[0] * inputImg.i32Height + inputImg.pi32Pitch[1] * inputImg.i32Height / 2, inputImg.pi32Pitch[2] * inputImg.i32Height / 2);
+        inputImg.ppu8Plane[3] = Pointer.NULL;
+        
+        inputImg.setAutoRead(false);
+        
+		List<byte[]> faceModels = new ArrayList<>();
+		//doFaceDetection可能为空
+		FaceInfo[] doFaceDetection = doFaceDetection(inputImg);
+		if(doFaceDetection!=null&&doFaceDetection.length>0) {
+			for(FaceInfo faceInfo :doFaceDetection) {
+				AFR_FSDK_FACEMODEL faceModel = extractFRFeature(inputImg,faceInfo);
+				if(faceModel==null) {
+					continue;
+				}
+				try {
+					faceModels.add(faceModel.toByteArray());
+				}catch(Exception e) {
+					continue;
+				}
+			}
 		}
-		return byteArray;
+		return faceModels;
 	}
 	
 	
 	//两个FaceModel获取相似度
 	public  float compareFaceSimilarity( byte[] modelA, byte[] modelB) {
-        // Do Face Detect
-       /* FaceInfo[] faceInfosA = doFaceDetection( inputImgA);
-        if (faceInfosA.length < 1) {
-            System.out.println("no face in Image A ");
-            return 0.0f;
-        }
-
-        FaceInfo[] faceInfosB = doFaceDetection(inputImgB);
-        if (faceInfosB.length < 1) {
-            System.out.println("no face in Image B ");
-            return 0.0f;
-        }
-
-        // Extract Face Feature
-        AFR_FSDK_FACEMODEL faceFeatureA = extractFRFeature(inputImgA, faceInfosA[0]);
-        if (faceFeatureA == null) {
-            System.out.println("extract face feature in Image A failed");
-            return 0.0f;
-        }
-
-        AFR_FSDK_FACEMODEL faceFeatureB = extractFRFeature( inputImgB, faceInfosB[0]);
-        if (faceFeatureB == null) {
-            System.out.println("extract face feature in Image B failed");
-            faceFeatureA.freeUnmanaged();
-            return 0.0f;
-        }*/
 		AFR_FSDK_FACEMODEL faceFeatureA;
 		AFR_FSDK_FACEMODEL faceFeatureB;
 		try {
@@ -267,10 +279,10 @@ public class NewFaceManager {
         return faceInfo;
     }
 	
-	public  ASVLOFFSCREEN loadImage(byte[] filePath) {
+	/*public  ASVLOFFSCREEN loadImage(byte[] faceImage) {
         ASVLOFFSCREEN inputImg = new ASVLOFFSCREEN();
         
-        BufferInfo bufferInfo = ImageLoader.getI420FromByteArray(filePath);
+        BufferInfo bufferInfo = ImageLoader.getI420FromByteArray(faceImage);
         inputImg.u32PixelArrayFormat = ASVL_COLOR_FORMAT.ASVL_PAF_I420;
         inputImg.i32Width = bufferInfo.width;
         inputImg.i32Height = bufferInfo.height;
@@ -287,7 +299,7 @@ public class NewFaceManager {
         
         inputImg.setAutoRead(false);
         return inputImg;
-    }
+    }*/
 
 	public Pointer gethFDEngine() {
 		return hFDEngine;
@@ -328,6 +340,5 @@ public class NewFaceManager {
 	public void sethFTEngine(Pointer hFTEngine) {
 		this.hFTEngine = hFTEngine;
 	}
-	
 	
 }
